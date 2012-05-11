@@ -1,117 +1,79 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef XBUFFER_H__
-#define XBUFFER_H__
+#ifndef SWIFT_NET_XBUFFER_H__
+#define SWIFT_NET_XBUFFER_H__
 
 #include <stdint.h>
 #include <cstdlib>
 #include <cstring>
 
-#include "noncopyable.h"
+#include <swift/base/noncopyable.h>
 
-struct xbuffer : public noncopyable
+namespace swift { namespace net
 {
-    char *buf;
-    int size;
-    int wpos;  //write position
-    int rpos;  //read position
 
-    static const int kBufferInitSize = 4096;
+class XBuffer : public noncopyable
+{
+public:
+    /// @param size default size of the buffer
+    explicit XBuffer(int size);
+    ~XBuffer();
 
-    xbuffer(int s = kBufferInitSize) : size(s)
-    {
-        if(size == 0)
-            size = kBufferInitSize;
-        buf = (char *)malloc(size);
-        wpos = rpos = 0;
-    }
+    /// reset buffer to empty
+    void Clear() { wpos_ = rpos_ = 0; }
 
-    ~xbuffer()
-    {
-        free(buf);
-    }
+    /// to guarantee WriteableBytes() >= @c
+    void EnsureCapacity(int c);
 
-    void reset()
-    {
-        wpos = rpos = 0;
-    }
+    /// call when we have read @len bytes from this buffer
+    void ConsumeBytes(int len);
 
-    void ensure_capacity(int c)
-    {
-        if(capacity() >= c)
-            return;
+    /// call when we have writen @len bytes to this buffer
+    void GotBytes(int len) { wpos_ += len; }
 
-        if(rpos != 0 && size - wpos + rpos >= c)
-        {
-            tidy();
-            return;
-        }
+    /// how many bytes can we write to this buffer
+    int WriteableBytes() { return size_ - wpos_; }
+    /// how many bytes can we read from this buffer
+    int ReadableBytes() { return wpos_ - rpos_; }
 
-        if(c < size / 2)
-            c = size / 2;
-        buf = (char *)realloc(buf, size + c);
-        size = size + c;
-    }
+    /// write pos
+    char *WritePos() { return buf_ + wpos_; }
+    /// read pos
+    char *ReadPos() { return buf_ + rpos_; }
 
-    void consume(int len)
-    {
-        rpos += len;
-        if(rpos >= wpos)
-        {
-            rpos = wpos = 0;
-        }
-    }
+    /// tidy
+    void Tidy();
 
-    void gotbytes(int len)
-    {
-        wpos += len;
-    }
+    /// peek @len bytes to @data
+    void Peek(void *data, int len);
 
-    //how much we can write to
-    int capacity()
-    {
-        return size - wpos;
-    }
+    /// retrive @len bytes to @data
+    void Retrive(void *data, int len);
 
-    char *writepos()
-    {
-        return buf + wpos;
-    }
+    /// append data
+    void Append(const void *data, int len);
 
-    char *readpos()
-    {
-        return buf + rpos;
-    }
+    /// read from @fd
+    /// @retval >0 read succeed or EAGAIN/EINTR
+    /// @retval 0  connection is closed by peer
+    /// @retval <0 something is wrong, -errno is returned
+    int ReadFrom(int fd);
 
-    //how much we can read
-    int len()
-    {
-        return wpos -rpos;
-    }
+    /// write to @fd
+    /// @retval >0 bytes written
+    /// @retval 0  EAGAIN or EINTR
+    /// @retval <0 something is wrong, -errno is returned
+    int WriteTo(int fd);
 
-    void tidy()
-    {
-        if(rpos == 0)
-            return;
-
-        memmove(buf, buf + rpos, wpos - rpos);
-        wpos -= rpos;
-        rpos = 0;
-    }
-
-    //从fd中读取数据
-    //@retval 1 成功，数据在buff中，或者读到EAGAIN
-    //@retval 0 对端关闭连接
-    //@retval <0 出错，-errno
-    int readfrom(int fd);
-
-    //将buf中的数据写入fd
-    //@retval >0 写入的字节数
-    //@retval  0 写到EINTER, EAGAIN
-    //@retval <0 出错
-    int writeto(int fd);
+private:
+    char *buf_;
+    int size_;
+    int wpos_;
+    int rpos_;
 };
+
+}}
 
 #endif
 

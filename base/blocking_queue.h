@@ -1,17 +1,20 @@
-#ifndef BLOCKING_QUEUE_H__
-#define BLOCKING_QUEUE_H__
+#ifndef SWIFT_BASE_BLOCKING_QUEUE_H_
+#define SWIFT_BASE_BLOCKING_QUEUE_H_
 
 #include <deque>
 
-#include "noncopyable.h"
-#include "condition.h"
-#include "mutex.h"
+#include <swift/base/noncopyable.h>
+#include <swift/base/condition.h>
+#include <swift/base/mutex.h>
+
+namespace swift
+{
 
 template<typename T>
-class blocking_queue : noncopyable
+class BlockingQueue : noncopyable
 {
 public:
-    blocking_queue()
+    BlockingQueue()
         : mutex_(),
         not_empty_(mutex_),
         queue_()
@@ -48,5 +51,7 @@ private:
     posix_condition not_empty_;
     std::deque<T>     queue_;
 };
+
+}
 
 #endif

@@ -1,43 +1,52 @@
-#ifndef TIMESTAMP_H__
-#define TIMESTAMP_H__
+#ifndef SWIFT_BASE_TIMESTAMP_H__
+#define SWIFT_BASE_TIMESTAMP_H__
 
 #include <stdint.h>
 #include <string>
 
-class timestamp
+namespace swift
+{
+
+class Timestamp
 {
 public:
-    timestamp() : m_useconds(0) {}
-    explicit timestamp(int64_t usecondsSinceEpoch) :
-        m_useconds(usecondsSinceEpoch) {}
+    ///default constructor: an invalid timestamp
+    Timestamp() : microseconds_(0) {}
 
-    bool valid() const { return m_useconds > 0; }
-    static timestamp now();
-    std::string to_string() const;
-    std::string to_date_string() const;
+    explicit Timestamp(int64_t microseconds_since_epoch) :
+        microseconds_(microseconds_since_epoch) {}
 
-    int64_t useconds() const { return m_useconds; }
+    bool Valid() const { return microseconds_ > 0; }
 
-    static const int usecondsPerSecond = 1e6;
+    static Timestamp Now();
+
+    std::string ToString() const;
+
+    std::string ToDateTimeString() const;
+
+    int64_t MicrosecondsSinceEpoch() const { return microseconds_; }
+
+    static const int kMicrosecondsPerSecond = 1e6;
 
 private:
-    int64_t m_useconds; //micro seconds since epoch
+    int64_t microseconds_; //micro seconds since epoch
 };
 
-inline bool operator <(const timestamp &lhs, const timestamp &rhs)
+inline bool operator <(const Timestamp lhs, const Timestamp rhs)
 {
-    return lhs.useconds() < rhs.useconds();
+    return lhs.MicrosecondsSinceEpoch() < rhs.MicrosecondsSinceEpoch();
 }
 
-inline bool operator ==(const timestamp &lhs, const timestamp &rhs)
+inline bool operator ==(const Timestamp lhs, const Timestamp rhs)
 {
-    return lhs.useconds() == rhs.useconds();
+    return lhs.MicrosecondsSinceEpoch() == rhs.MicrosecondsSinceEpoch();
 }
 
-int operator -(const timestamp &lhs, const timestamp &rhs)
+inline double TimeDifference(Timestamp high, Timestamp low)
 {
-    return static_cast<int>(lhs.useconds() - rhs.useconds());
+    int64_t diff = high.MicrosecondsSinceEpoch() - low.MicrosecondsSinceEpoch();
+    return static_cast<double>(diff) / Timestamp::kMicrosecondsPerSecond;
 }
 
-
+}
 #endif

@@ -1,3 +1,5 @@
+#include "util/safe_convert.h"
+
 #include <limits.h>
 #include <stdlib.h>
 

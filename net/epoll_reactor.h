@@ -1,13 +1,12 @@
-#ifndef EPOLL_REACTOR_H__
-#define EPOLL_REACTOR_H__
+#ifndef SWIFT_NET_EPOLL_REACTOR_H__
+#define SWIFT_NET_EPOLL_REACTOR_H__
 
 #include <sys/epoll.h>
 #include <vector>
 #include <string>
 
-#include "noncopyable.h"
-
-#include "event_handler.h"
+#include <swift/base/noncopyable.h>
+#include <swift/net/event_handler.h>
 
 typedef void (*pfn_action)(void *arg);
 

@@ -1,20 +1,23 @@
-#ifndef POSIX_CONDITION_H__
-#define POSIX_CONDITION_H__
+#ifndef Condition_H__
+#define Condition_H__
 
 #include <pthread.h>
 
-#include "mutex.h"
-#include "noncopyable.h"
+#include <swift/base/noncopyable.h>
+#include <swift/base/mutex.h>
 
-class posix_condition : noncopyable
+namespace swift
+{
+
+class Condition : noncopyable
 {
 public:
-    explicit posix_condition(posix_mutex& mutex) : mutex_(mutex)
+    explicit Condition(Mutex& mutex) : mutex_(mutex)
     {
         pthread_cond_init(&pcond_, NULL);
     }
 
-    ~posix_condition()
+    ~Condition()
     {
         pthread_cond_destroy(&pcond_);
     }
@@ -35,9 +38,9 @@ public:
     }
 
 private:
-    posix_mutex &mutex_;
+    Mutex &mutex_;
     pthread_cond_t pcond_;
 };
 
-
+}
 #endif

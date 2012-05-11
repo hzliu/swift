@@ -1,19 +1,22 @@
-#ifndef POSIX_MUTEX_H__
-#define POSIX_MUTEX_H__
+#ifndef SWIFT_BASE_MUTEX_H__
+#define SWIFT_BASE_MUTEX_H__
 
 #include <pthread.h>
 
-#include "noncopyable.h"
+#include <swift/base/noncopyable.h>
 
-class posix_mutex : noncopyable
+namespace swift
+{
+
+class Mutex : noncopyable
 {
 public:
-    posix_mutex()
+    Mutex()
     {
         pthread_mutex_init(&mutex_, NULL);
     }
 
-    ~posix_mutex()
+    ~Mutex()
     {
         pthread_mutex_destroy(&mutex_);
     }
@@ -37,15 +40,15 @@ private:
     pthread_mutex_t mutex_;
 };
 
-class mutex_guard : noncopyable
+class MutexGuard : noncopyable
 {
 public:
-    mutex_guard(posix_mutex &mutex) : mutex_(mutex) { mutex_.lock(); }
-    ~mutex_guard() { mutex_.unlock(); }
+    MutexGuard(Mutex &mutex) : mutex_(mutex) { mutex_.lock(); }
+    ~MutexGuard() { mutex_.unlock(); }
 
 private:
-    posix_mutex &mutex_;
+    Mutex &mutex_;
 };
 
-
+}
 #endif
