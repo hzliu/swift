@@ -1,12 +1,12 @@
 #include <swift/base/timestamp.h>
 
-#include <sys/time.h>
-#include <ctime>
-#include <cstdio>
-
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #undef __STDC_FORMAT_MACROS
+
+#include <sys/time.h>
+#include <ctime>
+#include <cstdio>
 
 namespace swift
 {
