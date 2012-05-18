@@ -1,3 +1,5 @@
+#include <swift/net/epoll_reactor.h>
+
 #include <sys/epoll.h>
 #include <errno.h>
 #include <cstring>
@@ -6,13 +8,16 @@
 #include <stdexcept>
 #include <sstream>
 
-#include "epoll_reactor.h"
+#include <swift/net/event_handler.h>
 
-epoll_reactor::epoll_reactor(const char *name, int size) :
-    m_stop(0), m_name(name)
+namespace swift { namespace net
 {
-    m_epoll = epoll_create(size);
-    if(m_epoll < 0)
+
+EpollReactor::EpollReactor(const char *name)
+    :name_(name), stop_(0)
+{
+    epoll_ = epoll_create(16);  //16 is unused actually; see manpage
+    if(epoll_ < 0)
     {
         //what should we do here?
         std::ostringstream ss;
@@ -21,43 +26,43 @@ epoll_reactor::epoll_reactor(const char *name, int size) :
     }
 
     //should be enough
-    m_tasks.reserve(1024);
-    m_events.resize(1024);
+    tasks_.reserve(1024);
+    events_.resize(1024);
 }
 
-epoll_reactor::~epoll_reactor()
+EpollReactor::~EpollReactor()
 {
-    close(m_epoll);
+    close(epoll_);
 }
 
-int epoll_reactor::attach(int fd, event_handler *eh, int events)
-{
-    epoll_event e;
-    e.events = events;
-    e.data.ptr = eh;
-
-    return epoll_ctl(m_epoll, EPOLL_CTL_ADD, fd, &e);
-}
-
-int epoll_reactor::modify(int fd, event_handler *eh, int events)
+int EpollReactor::Attach(int fd, EventHandler *eh, int events)
 {
     epoll_event e;
     e.events = events;
     e.data.ptr = eh;
 
-    return epoll_ctl(m_epoll, EPOLL_CTL_MOD, fd, &e);
+    return epoll_ctl(epoll_, EPOLL_CTL_ADD, fd, &e);
 }
 
-int epoll_reactor::detach(int fd)
+int EpollReactor::Modify(int fd, EventHandler *eh, int events)
+{
+    epoll_event e;
+    e.events = events;
+    e.data.ptr = eh;
+
+    return epoll_ctl(epoll_, EPOLL_CTL_MOD, fd, &e);
+}
+
+int EpollReactor::Detach(int fd)
 {
     static epoll_event e;
-    return epoll_ctl(m_epoll, EPOLL_CTL_DEL, fd, &e);
+    return epoll_ctl(epoll_, EPOLL_CTL_DEL, fd, &e);
 }
 
-int epoll_reactor::run_once()
+int EpollReactor::RunOnce()
 {
-    epoll_event *events = m_events.data();
-    int rtn = epoll_wait(m_epoll, events, m_events.size(), -1);
+    epoll_event *ev = events_.data();
+    int rtn = epoll_wait(epoll_, ev, events_.size(), -1);
     if(rtn < 0)
     {
         if(errno == EINTR)
@@ -69,48 +74,48 @@ int epoll_reactor::run_once()
 
     for (int i = 0; i < rtn; ++i)
     {
-        event_handler *eh = (event_handler *)events[i].data.ptr;
-        if(events[i].events & EPOLLERR)
-            if(eh->handle_error(this) != 0)
+        EventHandler *eh = static_cast<EventHandler *>(ev[i].data.ptr);
+        if(ev[i].events & EPOLLERR)
+            if(eh->HandleError(this) != 0)
                 continue;
-        if(events[i].events & EPOLLIN)
-            if(eh->handle_input(this) != 0)
+        if(ev[i].events & EPOLLIN)
+            if(eh->HandleInput(this) != 0)
                 continue;
-        if(events[i].events & EPOLLOUT)
-            if(eh->handle_output(this) != 0)
+        if(ev[i].events & EPOLLOUT)
+            if(eh->HandleOutput(this) != 0)
                 continue;
         //we handle hangup at the last
-        if(events[i].events & EPOLLHUP)
-            if(eh->handle_hangup(this) != 0)
+        if(ev[i].events & EPOLLHUP)
+            if(eh->HandleHangup(this) != 0)
                 continue;
     }
 
-    if(rtn == m_events.size())
-        m_events.resize(2 * rtn);
+    if(static_cast<size_t>(rtn) == events_.size())
+        events_.resize(2 * rtn);
 
-    for(std::vector<delay_task>::iterator iter = m_tasks.begin();
-            iter != m_tasks.end(); ++iter)
+    for(std::vector<Task>::iterator iter = tasks_.begin();
+            iter != tasks_.end(); ++iter)
     {
-        iter->function(iter->arg);
+        (*iter)();
     }
 
-    m_tasks.clear();
+    tasks_.clear();
 
     return 0;
 }
 
-void epoll_reactor::run()
+void EpollReactor::Run()
 {
-    while(!m_stop)
+    while(!stop_)
     {
-        if(run_once() < 0)
+        if(RunOnce() < 0)
             return;
     }
 }
 
-void epoll_reactor::push_delay_task(pfn_action task, void *arg)
+void EpollReactor::QueueTask(Task t)
 {
-    delay_task t = { task, arg };
-    m_tasks.push_back(t);
+    tasks_.push_back(t);
 }
 
+}}

@@ -1,54 +1,63 @@
 #ifndef SWIFT_NET_CONNECTOR_H__
 #define SWIFT_NET_CONNECTOR_H__
 
+#include <netinet/in.h>
+
+#include <tr1/functional>
+
 #include <swift/base/noncopyable.h>
-#include <swift/net/epoll_reactor.h>
+#include <swift/net/event_handler.h>
 
 struct sockaddr_in;
 
 namespace swift { namespace net
 {
 
-class Connector;
-struct IConnectorNotifier
-{
-    virtual void ConnectFailed(Connector *c, int error) = 0;
-    virtual void ConnectSucceed(Connector *c) = 0;
-    virtual ~IConnectorNotifier() {}
-};
+class EpollReactor;
 
-class Connector : public event_handler, public noncopyable
+class Connector : public EventHandler, public noncopyable
 {
 public:
-    Connector(epoll_reactor *reactor, IConnectorNotifier *notifier);
+    typedef std::tr1::function<void (Connector *c)> SucceedCallback;
+    typedef std::tr1::function<void (Connector *c, int error)> FailedCallback;
 
+    Connector(EpollReactor *reactor, const sockaddr_in &peer);
     ~Connector();
 
-    const static int CONNECT_FAILED = -1;
-    const static int CONNECT_IN_PROGRESS = 0;
-    const static int CONNECT_SUCCEED = 1;
+    void SetCallback(SucceedCallback succeed, FailedCallback failed)
+    {
+        on_succeed_ = succeed;
+        on_failed_ = failed;
+    }
 
-    int connect(const sockaddr_in &remoteAddr);
+    const static int kConnectFailed = -1;
+    const static int kConnectInProgress = 0;
+    const static int kConnectSucceed = 1;
 
-    int fd() { return m_fd; }
-    epoll_reactor *reactor() { return m_reactor; }
+    int Connect(int timeout);
 
-    int handle_input(epoll_reactor *)
+    int Fd() { return fd_; }
+    EpollReactor *Reactor() { return reactor_; }
+
+    virtual int HandleInput(EpollReactor *)
     {
         //should not happen
         return 0;
     }
 
-    int handle_output(epoll_reactor *reactor);
-    int handle_error(epoll_reactor *reactor);
-    int handle_hangup(epoll_reactor *reactor);
+    virtual int HandleOutput(EpollReactor *reactor);
+    virtual int HandleError(EpollReactor *reactor);
+    virtual int HandleHangup(EpollReactor *reactor);
 
 private:
-    epoll_reactor *m_reactor;
-    int m_fd;
-    IConnectorNotifier *m_notifier;
-};
+    void Failed(int err);
 
+    EpollReactor *reactor_;
+    sockaddr_in peer_;
+    int fd_;
+    SucceedCallback on_succeed_;
+    FailedCallback on_failed_;
+};
 
 }}
 

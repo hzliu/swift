@@ -1,3 +1,5 @@
+#include <swift/net/sock_util.h>
+
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -6,8 +8,28 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "safe_convert.h"   //for safe_strtous
-#include "sock_util.h"
+#include <swift/util/safe_convert.h>
+
+sockaddr *sockaddr_cast(sockaddr_in *addr)
+{
+    return reinterpret_cast<sockaddr *>(addr);
+}
+
+const sockaddr *sockaddr_cast(const sockaddr_in *addr)
+{
+    return reinterpret_cast<const sockaddr *>(addr);
+}
+
+sockaddr *sockaddr_cast(sockaddr_un *addr)
+{
+    return reinterpret_cast<sockaddr *>(addr);
+}
+
+const sockaddr *sockaddr_cast(const sockaddr_un *addr)
+{
+    return reinterpret_cast<const sockaddr *>(addr);
+}
+
 
 int string_to_sock_addr(const char *str, sockaddr_in *addr)
 {
@@ -19,7 +41,7 @@ int string_to_sock_addr(const char *str, sockaddr_in *addr)
     if(!delimPos)
         return -1;
 
-    if(delimPos - str > sizeof(buf) - 1)
+    if(delimPos - str > static_cast<int>(sizeof(buf)) - 1)
         return -1;
 
     memcpy(buf, str, delimPos - str);
@@ -36,7 +58,8 @@ int string_to_sock_addr(const char *str, sockaddr_in *addr)
 
 char *sock_addr_to_string(const sockaddr_in &addr, char buf[32])
 {
-    const unsigned char *pbyte = (const unsigned char *)&addr.sin_addr.s_addr;
+    const unsigned char *pbyte =
+        reinterpret_cast<const unsigned char *>(&addr.sin_addr.s_addr);
     sprintf(buf, "%d.%d.%d.%d:%d", pbyte[0], pbyte[1], pbyte[2], pbyte[3],
             ntohs(addr.sin_port));
     return buf;
@@ -55,7 +78,7 @@ int listen_or_die(const sockaddr_in &addr, int backlog)
     //reuse addr should be set by default
     set_reuseaddr(s);
 
-    if(bind(s, (const sockaddr *)&addr, sizeof(sockaddr_in)) < 0)
+    if(bind(s, sockaddr_cast(&addr), sizeof(sockaddr_in)) < 0)
     {
         fprintf(stderr, "bind error: %m");
         abort();
@@ -85,7 +108,7 @@ int listen_or_die(const sockaddr_un &addr, int backlog)
     //reuse addr should be set by default
     set_reuseaddr(s);
 
-    if(bind(s, (const sockaddr *)&addr, sizeof(sockaddr_un)) < 0)
+    if(bind(s, sockaddr_cast(&addr), sizeof(sockaddr_un)) < 0)
     {
         fprintf(stderr, "bind error: %m");
         abort();
@@ -94,7 +117,7 @@ int listen_or_die(const sockaddr_un &addr, int backlog)
 
     if(listen(s, backlog) < 0)
     {
-        fprintf(stderr, "bind error: %m");
+        fprintf(stderr, "listen error: %m");
         abort();
         return -1;
     }

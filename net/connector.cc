@@ -1,88 +1,93 @@
-#include <netinet/in.h>
+#include <swift/net/connector.h>
+
 #include <errno.h>
+#include <assert.h>
 
-#include "connector.h"
-#include "sock_util.h"
+#include <swift/net/epoll_reactor.h>
+#include <swift/net/sock_util.h>
 
-connector::connector(epoll_reactor *reactor, IConnectorNotifier *notifier) :
-    m_reactor(reactor), m_fd(-1), m_notifier(notifier)
+namespace swift { namespace net
+{
+
+Connector::Connector(EpollReactor *reactor, const sockaddr_in &peer)
+    : reactor_(reactor), peer_(peer), fd_(-1)
 {
 }
 
-connector::~connector()
+Connector::~Connector()
 {
-    delete m_notifier;
 }
 
-int connector::connect(const sockaddr_in &remoteAddr)
+int Connector::Connect(int timeout)
 {
-    m_fd = socket(PF_INET, SOCK_STREAM, 0);
-    if(m_fd < 0)
-        return CONNECT_FAILED;
+    assert(on_succeed_ && on_failed_);
 
-    set_nonblocking(m_fd);
-    set_reuseaddr(m_fd);
+    fd_ = socket(PF_INET, SOCK_STREAM, 0);
+    if(fd_ < 0)
+    {
+        if(on_failed_) on_failed_(this, errno);
+        delete this;
+        return kConnectFailed;
+    }
 
-    int rtn = ::connect(m_fd, (const sockaddr *)&remoteAddr,
-            sizeof(remoteAddr));
+    set_nonblocking(fd_);
+    set_reuseaddr(fd_);
+
+    int rtn = ::connect(fd_, reinterpret_cast<sockaddr *>(&peer_), sizeof(peer_));
     if(rtn == 0)
     {
-        m_notifier->ConnectSucceed(this);
+        if(on_succeed_) on_succeed_(this);
         delete this;
-        return CONNECT_SUCCEED;
+        return kConnectSucceed;
     }
 
     if(rtn < 0 && errno != EINPROGRESS)
     {
-        close(m_fd);
-        m_fd = -1;
-        m_notifier->ConnectFailed(this, errno);
-        delete this;
-        return CONNECT_FAILED;
+        Failed(errno);
+        return kConnectFailed;
     }
 
-    m_reactor->attach(m_fd, this, EPOLLOUT);
-    return CONNECT_IN_PROGRESS;
+    reactor_->Attach(fd_, this, EPOLLOUT);
+    return kConnectInProgress;
 }
 
-int connector::handle_output(epoll_reactor *reactor)
+int Connector::HandleOutput(EpollReactor *reactor)
 {
     int err = 0;
     socklen_t len = sizeof(err);
-    int rtn = getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &err, &len);
+    int rtn = getsockopt(fd_, SOL_SOCKET, SO_ERROR, &err, &len);
     if(rtn < 0 || err != 0)
     {
-        m_notifier->ConnectFailed(this, err);
-        close(m_fd);
-        delete this;
+        Failed(rtn < 0 ? errno : err);
         return -1;
     }
 
-    reactor->detach(m_fd);
-    m_notifier->ConnectSucceed(this);
+    reactor->Detach(fd_);
+    if(on_succeed_) on_succeed_(this);
     delete this;
     return -1;
 }
 
-int connector::handle_error(epoll_reactor *reactor)
+int Connector::HandleError(EpollReactor *reactor)
 {
     int err = 0;
     socklen_t len = sizeof(err);
-    getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &err, &len);
-    m_notifier->ConnectFailed(this, err);
-
-    close(m_fd);
-    delete this;
+    int rtn = getsockopt(fd_, SOL_SOCKET, SO_ERROR, &err, &len);
+    Failed(rtn < 0 ? errno : err);
     return -1;
 }
 
-int connector::handle_hangup(epoll_reactor *reactor)
+int Connector::HandleHangup(EpollReactor *reactor)
 {
-    m_notifier->ConnectFailed(this, -1);
-    close(m_fd);
-    delete this;
+    Failed(-1);
     return -1;
 }
 
+void Connector::Failed(int err)
+{
+    if(on_failed_) on_failed_(this, err);
+    close(fd_);
+    delete this;
+}
 
-
+}}

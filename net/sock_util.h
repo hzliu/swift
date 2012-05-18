@@ -1,8 +1,8 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef SOCK_UTIL_H__
-#define SOCK_UTIL_H__
+#ifndef SWIFT_NET_SOCK_UTIL_H__
+#define SWIFT_NET_SOCK_UTIL_H__
 
 #include <unistd.h>
 #include <sys/fcntl.h>

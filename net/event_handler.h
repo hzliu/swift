@@ -1,14 +1,21 @@
-#ifndef EVENT_HANDLER_H__
-#define EVENT_HANDLER_H__
+#ifndef SWIFT_BASE_EVENT_HANDLER_H__
+#define SWIFT_BASE_EVENT_HANDLER_H__
 
-class epoll_reactor;
-
-struct event_handler
+namespace swift { namespace net
 {
-    virtual int handle_input(epoll_reactor *reactor) = 0;
-    virtual int handle_output(epoll_reactor *reactor) = 0;
-    virtual int handle_hangup(epoll_reactor *reactor) = 0;
-    virtual int handle_error(epoll_reactor *reactor) = 0;
+
+class EpollReactor;
+
+struct EventHandler
+{
+    virtual int HandleInput(EpollReactor *reactor) = 0;
+    virtual int HandleOutput(EpollReactor *reactor) = 0;
+    virtual int HandleHangup(EpollReactor *reactor) = 0;
+    virtual int HandleError(EpollReactor *reactor) = 0;
+
+    virtual ~EventHandler() {}
 };
+
+}}
 
 #endif

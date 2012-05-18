@@ -4,42 +4,42 @@
 #include <sys/epoll.h>
 #include <vector>
 #include <string>
+#include <tr1/functional>
 
 #include <swift/base/noncopyable.h>
-#include <swift/net/event_handler.h>
 
-typedef void (*pfn_action)(void *arg);
+namespace swift { namespace net
+{
 
-class epoll_reactor : public noncopyable
+struct EventHandler;
+
+class EpollReactor : public noncopyable
 {
 public:
-    int attach(int fd, event_handler *eh, int events);
-    int modify(int fd, event_handler *eh, int events);
-    int detach(int fd);
-    void run();
-    int run_once();
-    void stop() { m_stop = 1; }
-    bool stoped() { return m_stop == 1; }
-    void push_delay_task(pfn_action task, void *arg);
+    explicit EpollReactor(const char *name);
+    ~EpollReactor();
 
-    const std::string &name() const { return m_name; }
+    const std::string &Name() const { return name_; }
 
-    epoll_reactor(const char *name, int size);
-    ~epoll_reactor();
+    int Attach(int fd, EventHandler *eh, int events);
+    int Modify(int fd, EventHandler *eh, int events);
+    int Detach(int fd);
+
+    void Run();
+    int RunOnce();
+    void Stop() { stop_ = 1; }
+    bool Stoped() { return stop_ == 1; }
+
+    typedef std::tr1::function<void ()> Task;
+    void QueueTask(Task t);
 
 private:
-    int m_epoll;
-    volatile int m_stop;
-    std::vector<epoll_event> m_events;
-
-    struct delay_task
-    {
-        pfn_action function;
-        void *arg;
-    };
-
-    std::vector<delay_task> m_tasks;
-    std::string m_name;
+    std::string name_;
+    int epoll_;
+    volatile int stop_;
+    std::vector<epoll_event> events_;
+    std::vector<Task> tasks_;
 };
 
+}}
 #endif

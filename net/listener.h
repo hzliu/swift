@@ -1,39 +1,44 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef LISTENER_H__
-#define LISTENER_H__
+#ifndef SWIFT_NET_LISTENER_H__
+#define SWIFT_NET_LISTENER_H__
 
-#include "event_handler_impl.h"
+#include <assert.h>
+#include <tr1/functional>
 
-class listener;
+#include <swift/net/event_handler_impl.h>
 
-struct IWorkerFactory
+namespace swift { namespace net
 {
-    virtual void OnFdAccepted(epoll_reactor *reactor, int fd) = 0;
-    virtual void OnAcceptError(listener *l) = 0;
 
-    //return 0 if you can handle this situation
-    virtual int OnFdExceeds(listener *l) = 0;
-};
-
-class listener : public event_handler_impl
+class Listener : public EventHandlerImpl
 {
 public:
-    listener(epoll_reactor *reactor, int fd, IWorkerFactory *factory);
-    ~listener();
+    Listener(EpollReactor *reactor, int fd);
+    ~Listener();
 
-    int handle_input(epoll_reactor *reactor);
-    int handle_output(epoll_reactor *reactor)
+    typedef std::tr1::function<void (EpollReactor *, int fd)> ConnectionAcceptedCallback;
+    void SetConnectionAcceptedCallback(ConnectionAcceptedCallback on_accept);
+
+    typedef std::tr1::function<void ()> FdExceedCallback;
+    void SetFdExceedCallback(FdExceedCallback on_fd_exceed);
+
+    int HandleInput(EpollReactor *reactor);
+    int HandleOutput(EpollReactor *reactor)
     {
-        //you can't get here
+        assert(false && "HandleOutput in Listener called");
         return 0;
     }
 
+    static const int kMaxAcceptInOnLoop = 16;
+
 private:
-    IWorkerFactory *m_factory;
-    int m_nullFd;   //a backup fd to handle ENFILE or EMFILE
+    int AcceptOnce();
+    ConnectionAcceptedCallback on_connection_accept_;
+    FdExceedCallback on_fd_exceed_;
 };
 
+}}
 #endif
 

@@ -1,98 +1,100 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef EPOLL_HANDLER_IMPL_H__
-#define EPOLL_HANDLER_IMPL_H__
+#ifndef SWIFT_NET_EPOLL_HANDLER_IMPL_H__
+#define SWIFT_NET_EPOLL_HANDLER_IMPL_H__
 
 #include <unistd.h>
 
-#include "../base/noncopyable.h"
+#include <swift/base/noncopyable.h>
+#include <swift/net/event_handler.h>
+#include <swift/net/epoll_reactor.h>
 
-#include "event_handler.h"
-#include "epoll_reactor.h"
+namespace swift { namespace net
+{
 
-class event_handler_impl : public event_handler, public noncopyable
+class EventHandlerImpl : public EventHandler, public noncopyable
 {
 public:
-    event_handler_impl(epoll_reactor *reactor, int fd, int event) :
-        m_reactor(reactor), m_mask(event), m_fd(fd)
+    EventHandlerImpl(EpollReactor *reactor, int fd, int event)
+        : reactor_(reactor), mask_(event), fd_(fd)
     {
-        m_reactor->attach(m_fd, this, m_mask);
+        reactor_->Attach(fd_, this, mask_);
     }
 
-    virtual ~event_handler_impl()
+    virtual ~EventHandlerImpl()
     {
-        close(m_fd);
+        close(fd_);
     }
 
-    int fd() { return m_fd; }
+    int Fd() { return fd_; }
 
-    epoll_reactor *reactor()
+    EpollReactor *Reactor()
     {
-        return m_reactor;
+        return reactor_;
     }
 
-    static void delete_(void *arg)
+    static void Delete_(EventHandlerImpl *self)
     {
-        event_handler_impl *me = (event_handler_impl *)arg;
-        delete me;
+        delete self;
     }
 
-    virtual int handle_error(epoll_reactor *reactor)
+    virtual int HandleError(EpollReactor *reactor)
     {
-        reactor->push_delay_task(delete_, this);
+        reactor->QueueTask(std::tr1::bind(Delete_, this));
         return -1;
     }
 
-    virtual int handle_hangup(epoll_reactor *reactor)
+    virtual int HandleHangup(EpollReactor *reactor)
     {
-        reactor->push_delay_task(delete_, this);
+        reactor->QueueTask(std::tr1::bind(Delete_, this));
         return -1;
     }
 
-    void enable_input_notify()
+    void EnableInputNotify()
     {
-        enable_notify(EPOLLIN);
+        EnableNotify(EPOLLIN);
     }
 
-    void disable_input_notify()
+    void DisableInputNotify()
     {
-        disable_notify(EPOLLIN);
+        DisableNotify(EPOLLIN);
     }
 
-    void enable_output_notify()
+    void EnableOutputNotify()
     {
-        enable_notify(EPOLLOUT);
+        EnableNotify(EPOLLOUT);
     }
 
-    void disable_output_notify()
+    void DisableOutputNotify()
     {
-        disable_notify(EPOLLOUT);
+        DisableNotify(EPOLLOUT);
     }
 
-    void enable_notify(int event)
+    void EnableNotify(int event)
     {
-        if((m_mask & event) == event)
+        if((mask_ & event) == event)
             return;
 
-        m_mask |= event;
-        m_reactor->modify(m_fd, this, m_mask);
+        mask_ |= event;
+        reactor_->Modify(fd_, this, mask_);
     }
 
-    void disable_notify(int event)
+    void DisableNotify(int event)
     {
-        if((m_mask & event) == 0)
+        if((mask_ & event) == 0)
             return;
 
-        m_mask &= ~event;
-        m_reactor->modify(m_fd, this, m_mask);
+        mask_ &= ~event;
+        reactor_->Modify(fd_, this, mask_);
     }
 
 private:
-    epoll_reactor *m_reactor;
-    int m_mask; //event mask
-    int m_fd;
+    EpollReactor *reactor_;
+    int mask_; //event mask
+    int fd_;
 };
 
+}}
 #endif
 
