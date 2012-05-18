@@ -1,8 +1,8 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef STR_UTIL_H__
-#define STR_UTIL_H__
+#ifndef SWIFT_UTIL_STR_UTIL_H__
+#define SWIFT_UTIL_STR_UTIL_H__
 
 #include <string>
 #include <vector>

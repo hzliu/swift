@@ -1,8 +1,8 @@
 // Author: Hongzhang Liu
 // Date:
 
-#ifndef SAFE_CONVERT_H__
-#define SAFE_CONVERT_H__
+#ifndef SWIFT_UTIL_SAFE_CONVERT_H__
+#define SWIFT_UTIL_SAFE_CONVERT_H__
 
 /**
  * safe_* 只有当整个字符串是有效时，才返回true
