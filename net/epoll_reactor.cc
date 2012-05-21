@@ -59,10 +59,13 @@ int EpollReactor::Detach(int fd)
     return epoll_ctl(epoll_, EPOLL_CTL_DEL, fd, &e);
 }
 
-int EpollReactor::RunOnce()
+int EpollReactor::RunOnce(int milliseconds)
 {
     epoll_event *ev = events_.data();
-    int rtn = epoll_wait(epoll_, ev, events_.size(), -1);
+    int rtn = epoll_wait(epoll_, ev, events_.size(), milliseconds);
+
+    Timestamp now = Timestamp::Now();
+
     if(rtn < 0)
     {
         if(errno == EINTR)
@@ -101,14 +104,25 @@ int EpollReactor::RunOnce()
 
     tasks_.clear();
 
+    timer_queue_.RunUntil(now);
+
     return 0;
 }
 
 void EpollReactor::Run()
 {
+    const int kMicrosecondsPerMillisecond = 1e3;
     while(!stop_)
     {
-        if(RunOnce() < 0)
+        int milliseconds = -1;
+        if(!timer_queue_.Empty())
+        {
+            Timestamp next_timeout = timer_queue_.NextTimeout();
+            milliseconds = static_cast<int>(
+                (next_timeout.MicrosecondsSinceEpoch() -
+                 Timestamp::MicrosecondsUntilNow()) / kMicrosecondsPerMillisecond);
+        }
+        if(RunOnce(milliseconds) < 0)
             return;
     }
 }
@@ -116,6 +130,16 @@ void EpollReactor::Run()
 void EpollReactor::QueueTask(Task t)
 {
     tasks_.push_back(t);
+}
+
+TimerId EpollReactor::RunAfter(int milliseconds, TimerCallback callback)
+{
+    return RunAt(Timestamp::MillisecondsLater(milliseconds), callback);
+}
+
+TimerId EpollReactor::RunAt(Timestamp when, TimerCallback callback)
+{
+    return timer_queue_.ScheduleTimer(when, callback);
 }
 
 }}

@@ -7,6 +7,7 @@
 #include <tr1/functional>
 
 #include <swift/base/noncopyable.h>
+#include <swift/net/timer_queue.h>
 
 namespace swift { namespace net
 {
@@ -26,9 +27,13 @@ public:
     int Detach(int fd);
 
     void Run();
-    int RunOnce();
+    int RunOnce(int milliseconds);
     void Stop() { stop_ = 1; }
     bool Stoped() { return stop_ == 1; }
+
+    TimerId RunAfter(int milliseconds, TimerCallback callback);
+    TimerId RunAt(Timestamp when, TimerCallback callback);
+    bool CancelTimer(TimerId id);
 
     typedef std::tr1::function<void ()> Task;
     void QueueTask(Task t);
@@ -39,6 +44,8 @@ private:
     volatile int stop_;
     std::vector<epoll_event> events_;
     std::vector<Task> tasks_;
+
+    TimerQueue timer_queue_;
 };
 
 }}

@@ -18,7 +18,11 @@ public:
 
     bool Valid() const { return microseconds_ > 0; }
 
+
+    static int64_t MicrosecondsUntilNow();
     static Timestamp Now();
+    static Timestamp MillisecondsLater(int milliseconds);
+    static Timestamp SecondsLater(int seconds);
 
     std::string ToString() const;
 
@@ -35,6 +39,11 @@ private:
 inline bool operator <(const Timestamp lhs, const Timestamp rhs)
 {
     return lhs.MicrosecondsSinceEpoch() < rhs.MicrosecondsSinceEpoch();
+}
+
+inline bool operator <=(const Timestamp lhs, const Timestamp rhs)
+{
+    return lhs.MicrosecondsSinceEpoch() <= rhs.MicrosecondsSinceEpoch();
 }
 
 inline bool operator ==(const Timestamp lhs, const Timestamp rhs)

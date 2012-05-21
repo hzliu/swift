@@ -39,12 +39,29 @@ std::string Timestamp::ToDateTimeString() const
     return buf;
 }
 
-Timestamp Timestamp::Now()
+int64_t Timestamp::MicrosecondsUntilNow()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     int64_t seconds = tv.tv_sec;
-    return Timestamp(seconds * kMicrosecondsPerSecond + tv.tv_usec);
+    return seconds * kMicrosecondsPerSecond + tv.tv_usec;
+}
+
+Timestamp Timestamp::Now()
+{
+    return Timestamp(MicrosecondsUntilNow());
+}
+
+Timestamp Timestamp::MillisecondsLater(int milliseconds)
+{
+    const int kMicrosecondsPerMillisecond = 1e3;
+    return Timestamp(MicrosecondsUntilNow() +
+            milliseconds * kMicrosecondsPerMillisecond);
+}
+
+Timestamp Timestamp::SecondsLater(int seconds)
+{
+    return Timestamp(MicrosecondsUntilNow() + seconds * kMicrosecondsPerSecond);
 }
 
 }
