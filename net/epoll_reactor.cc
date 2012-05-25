@@ -121,6 +121,8 @@ void EpollReactor::Run()
             milliseconds = static_cast<int>(
                 (next_timeout.MicrosecondsSinceEpoch() -
                  Timestamp::MicrosecondsUntilNow()) / kMicrosecondsPerMillisecond);
+            if(milliseconds < 0)    //this is possible
+                milliseconds = 0;
         }
         if(RunOnce(milliseconds) < 0)
             return;
@@ -134,11 +136,13 @@ void EpollReactor::QueueTask(Task t)
 
 TimerId EpollReactor::RunAfter(int milliseconds, TimerCallback callback)
 {
-    return RunAt(Timestamp::MillisecondsLater(milliseconds), callback);
+    return timer_queue_.ScheduleTimer(
+            Timestamp::MillisecondsLater(milliseconds), callback);
 }
 
 TimerId EpollReactor::RunAt(Timestamp when, TimerCallback callback)
 {
+    //FIXME: if when < now?
     return timer_queue_.ScheduleTimer(when, callback);
 }
 

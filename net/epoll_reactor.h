@@ -13,6 +13,7 @@ namespace swift { namespace net
 {
 
 struct EventHandler;
+typedef std::tr1::function<void ()> TimerCallback;
 
 class EpollReactor : public noncopyable
 {

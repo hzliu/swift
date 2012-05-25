@@ -54,8 +54,7 @@ void TimerQueue::RunUntil(Timestamp now)
 
 Timestamp TimerQueue::NextTimeout()
 {
-    assert(!timer_queue_.empty());
-    return timer_queue_.top()->when;
+    return timer_queue_.empty() ? Timestamp::SecondsLater(3) : timer_queue_.top()->when;
 }
 
 }}

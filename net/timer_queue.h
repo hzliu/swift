@@ -9,12 +9,12 @@
 
 #include <swift/base/noncopyable.h>
 #include <swift/base/timestamp.h>
+#include <swift/net/timer_id.h>
 
 namespace swift { namespace net
 {
 
 typedef std::tr1::function<void ()> TimerCallback;
-typedef uint64_t TimerId;
 
 class TimerQueue : public noncopyable
 {
@@ -31,7 +31,6 @@ public:
     TimerId ScheduleTimer(Timestamp when, TimerCallback callback);
     bool CancelTimer(TimerId id);
     void RunUntil(Timestamp now);
-    bool Empty() { return timer_queue_.empty(); }
     Timestamp NextTimeout();
 
 private:
@@ -53,17 +52,15 @@ private:
     {
         bool operator()(Timer *lhs, Timer *rhs) const
         {
-            return lhs->when < rhs->when;
+            return rhs->when < lhs->when;
         }
     };
 
     typedef std::tr1::unordered_map<TimerId, Timer *> TimerMapType;
     TimerMapType timers_;
     std::priority_queue<Timer *, std::vector<Timer *>, TimerComparer> timer_queue_;
-
 };
 
 }}
-
 
 #endif
