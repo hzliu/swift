@@ -114,16 +114,12 @@ void EpollReactor::Run()
     const int kMicrosecondsPerMillisecond = 1e3;
     while(!stop_)
     {
-        int milliseconds = -1;
-        if(!timer_queue_.Empty())
-        {
-            Timestamp next_timeout = timer_queue_.NextTimeout();
-            milliseconds = static_cast<int>(
+        Timestamp next_timeout = timer_queue_.NextTimeout();
+        int milliseconds = static_cast<int>(
                 (next_timeout.MicrosecondsSinceEpoch() -
                  Timestamp::MicrosecondsUntilNow()) / kMicrosecondsPerMillisecond);
-            if(milliseconds < 0)    //this is possible
-                milliseconds = 0;
-        }
+        if(milliseconds < 0)    //this is possible
+            milliseconds = 0;
         if(RunOnce(milliseconds) < 0)
             return;
     }
